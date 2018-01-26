@@ -198,7 +198,7 @@ namespace Yarn.Unity
         }
 
 
-        // Display the options, and call the optionChooser when done.
+        // Yield until being told to continue
         IEnumerator PerformYield(Yarn.YieldComplete yieldCompleteDelegate)
         {
             while (!dialogue.CanContinueFromYield())
