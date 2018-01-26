@@ -41,6 +41,8 @@ namespace Yarn {
     /// response option the user selected.
     public delegate void OptionChooser (int selectedOptionIndex);
 
+    public delegate void YieldComplete();
+
     /// Loggers let the client send output to a console, for both debugging
     /// and error logging.
     public delegate void Logger(string message);
@@ -178,6 +180,17 @@ namespace Yarn {
 
             public NodeCompleteResult (string nextNode) {
                 this.nextNode = nextNode;
+            }
+        }
+
+        // The client should call DoContinueFromYield before asking
+        // for the next line. It's an error if you don't.
+        public class YieldResult : RunnerResult
+        {
+            public YieldComplete yieldCompleteDelegate;
+            public YieldResult(YieldComplete yieldComplete)
+            {
+                yieldCompleteDelegate = yieldComplete;
             }
         }
 
@@ -418,6 +431,10 @@ namespace Yarn {
             };
 
             vm.optionsHandler = delegate(OptionSetResult result) {
+                latestResult = result;
+            };
+
+            vm.yieldHandler = delegate (YieldResult result) {
                 latestResult = result;
             };
 
@@ -672,6 +689,35 @@ namespace Yarn {
                 #endregion Operators
 			}
 		}
+
+        //How should we handle the following functions being called when the VM is null? 
+        public bool CanContinueFromYield()
+        {
+            if(vm == null)
+            {
+                //What to return in this case? 
+                //Throw error? 
+                return false; 
+            }
+            return vm.CanContinueFromYield();
+        }
+        public void DoYield()
+        {
+            if(vm == null)
+            {
+                //Throw Error? 
+                return; 
+            }
+            vm.DoYield();
+        }
+        public void DoContinueFromYield(bool force = false)
+        {
+            if(vm == null)
+            {
+                //Throw Error? 
+            }
+            vm.DoContinueFromYield(force);
+        }
 
     }
 }

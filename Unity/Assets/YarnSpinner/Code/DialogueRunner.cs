@@ -182,6 +182,34 @@ namespace Yarn.Unity
             AddStringTable(text.text);
         }
 
+        public bool CanContinueFromYield()
+        {
+            return dialogue.CanContinueFromYield();
+        }
+
+        public void DoContinueFromYield(bool force = false)
+        {
+            dialogue.DoContinueFromYield(force);
+        }
+
+        public void DoYield()
+        {
+            dialogue.DoYield();
+        }
+
+
+        // Display the options, and call the optionChooser when done.
+        IEnumerator PerformYield(Yarn.YieldComplete yieldCompleteDelegate)
+        {
+            while (!dialogue.CanContinueFromYield())
+            {
+                yield return null;
+            }
+
+            yieldCompleteDelegate();
+        }
+
+
         /// Destroy the variable store and start again
         public void ResetDialogue ()
         {
@@ -252,6 +280,13 @@ namespace Yarn.Unity
                     // Wait for post-node action
                     var nodeResult = step as Yarn.Dialogue.NodeCompleteResult;
                     yield return StartCoroutine (this.dialogueUI.NodeComplete (nodeResult.nextNode));
+
+                } else if (step is Yarn.Dialogue.YieldResult) { 
+               
+                    var yieldResult = step as Yarn.Dialogue.YieldResult;
+
+                    // If yielded, wait for client to tell us to continue before proceeding
+                    yield return StartCoroutine(PerformYield(yieldResult.yieldCompleteDelegate));
                 }
             }
 

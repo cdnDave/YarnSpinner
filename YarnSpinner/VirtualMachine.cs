@@ -65,11 +65,13 @@ namespace Yarn
         public delegate void OptionsHandler(Dialogue.OptionSetResult options);
         public delegate void CommandHandler(Dialogue.CommandResult command);
         public delegate void NodeCompleteHandler(Dialogue.NodeCompleteResult complete);
+        public delegate void YieldHandler(Dialogue.YieldResult args);
 
         public LineHandler lineHandler;
         public OptionsHandler optionsHandler;
         public CommandHandler commandHandler;
         public NodeCompleteHandler nodeCompleteHandler;
+        public YieldHandler yieldHandler; 
 
         private Dialogue dialogue;
 
@@ -77,6 +79,8 @@ namespace Yarn
         private State state = new State();
 
         private Random random = new Random();
+
+        private int yieldCount = 0; 
 
         public string currentNodeName {
             get {
@@ -89,6 +93,8 @@ namespace Yarn
             Stopped,
             /** Waiting on option selection */
             WaitingOnOptionSelection,
+            /**Yielded**/
+            Yielded,
             /** Running */
             Running
         }
@@ -133,11 +139,43 @@ namespace Yarn
             executionState = ExecutionState.Stopped;
         }
 
+        public bool CanContinueFromYield()
+        {
+            return yieldCount == 0;
+        }
+
+        public void DoYield()
+        {
+            yieldCount--;
+        }
+
+        public void DoContinueFromYield(bool force = false)
+        {
+            if(force)
+            {
+                yieldCount = 0; 
+            }
+            else if (yieldCount < 0)
+            {
+                yieldCount++;
+            }
+            else
+            {
+                //Attempted to continue from a yield when the VM is not in a yield state, throw error? 
+            }
+        }
+
         /// Executes the next instruction in the current node.
         internal void RunNext() {
 
             if (executionState == ExecutionState.WaitingOnOptionSelection) {
                 dialogue.LogErrorMessage ("Cannot continue running dialogue. Still waiting on option selection.");
+                executionState = ExecutionState.Stopped;
+                return;
+            }
+            else if (executionState == ExecutionState.Yielded)
+            {
+                dialogue.LogErrorMessage("Cannot continue running dialogue. Waiting to be told to continue from yield.");
                 executionState = ExecutionState.Stopped;
                 return;
             }
@@ -302,6 +340,13 @@ namespace Yarn
                     // If the function returns a value, push it
                     if (function.returnsValue) {
                         state.PushValue (result);
+                    }
+                    if (!CanContinueFromYield())
+                    {
+
+                        // interrupt VM if the function call resulted in a yield instruction
+                        executionState = ExecutionState.Yielded;
+                        yieldHandler(new Dialogue.YieldResult(delegate () { executionState = ExecutionState.Running; }));
                     }
                 }
 
